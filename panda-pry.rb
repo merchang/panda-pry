@@ -161,7 +161,6 @@ Commands = Pry::CommandSet.new do
  # this end belongs to `Commands = Pry::CommandSet.new do`
 end
 
-
 Pry.commands.import Commands
 
 # initiate pry
