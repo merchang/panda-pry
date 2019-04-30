@@ -57,7 +57,8 @@ Commands = Pry::CommandSet.new do
       # not sure if this is the *best* way to handle this, but it works for here at least
       # history lesson: anything entered after the command name is stored in an array titled args
       $api_token = args[0]
-        output.puts "token set"
+      $canvas = Canvas::API.new(:host => "#{$domain}", :token => "#{$api_token}")
+      output.puts "token set"
     end
   end
 
@@ -83,6 +84,7 @@ Commands = Pry::CommandSet.new do
         $domain = "https://#{args[0]}.instructure.com"
         output.puts "instance set"
       end
+      $canvas = Canvas::API.new(:host => "#{$domain}", :token => "#{$api_token}")
     end
   end
 
@@ -141,7 +143,6 @@ Commands = Pry::CommandSet.new do
       #!TODO probs find a better way to handle pretty print.
       pp $buffers.fetch(args[0])
     end
-    # this opens up an opportunity/problem for some neat interpolating stuffs
   end
 
   create_command "CSV" do
@@ -154,13 +155,13 @@ Commands = Pry::CommandSet.new do
     BANNER
     def process
       # apparently this breaks when the script is in the root directory, but works when in Downloads
-      CSV.open("Downloads/#{args[0]}.csv", "wb") do |csv|
+      CSV.open("#{args[0]}.csv", "wb") do |csv|
           csv << $buffers.fetch(args[0]).first.keys # adds the attributes name on the first line
           $buffers.fetch(args[0]).each do |hash|
             csv << hash.values
           end
       end
-      end
+    end
   end
 
   create_command "select" do
@@ -193,13 +194,12 @@ Commands = Pry::CommandSet.new do
         filter_key = args[2]
         operator = args[3].to_s
         allowed_operators = ["=","!=","equals","!equals",">","<","contains","!contains"]
+        args[4] = '' if args[4] == 'nil' || args[4] == 'null'
         filter_value = args[4]
-        #!TODO first things first, do some error handling to ensure -w arguments are valid
-        # after, probs use a case statement to handle what to do fo' each operator
+
         if allowed_operators.include? operator == false
           raise Pry::CommandError, "Error: invalid operator. Allowed operators: = , != , > , < , contains , !contains"  
         end
-        # literally none of this works :D
         case operator
         when "="
           $buffers.fetch(args[0]).each do |x|
@@ -219,8 +219,42 @@ Commands = Pry::CommandSet.new do
           # these operators will need:
           # 1. to turn everything into a integer, not a string like everything else
           # 2. error messaging if non integer value is passed
-        when "<"
+          if filter_value.to_i.to_s != filter_value 
+            raise Pry::CommandError, "Error: filter-value must be an integer when using the '>' '<' operators.operators" 
+          end
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            if x.fetch(filter_key).to_i > filter_value.to_i
+              selection_output.push(value)
+            end
+          end
 
+        when "<"
+          if filter_value.to_i.to_s != filter_value 
+            raise Pry::CommandError, "Error: filter-value must be an integer when using the '>' '<' operators.operators" 
+          end
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            if x.fetch(filter_key).to_i < filter_value.to_i
+              selection_output.push(value)
+            end
+          end
+      
+        when "contains"
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            if x.fetch(filter_key).include? filter_value
+              selection_output.push(value)
+            end
+          end
+
+        when "!contains"
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            unless x.fetch(filter_key).include? filter_value
+              selection_output.push(value)
+            end
+          end
         end
 
         create_selection(selection_output)
