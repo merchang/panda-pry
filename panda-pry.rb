@@ -2,7 +2,6 @@ require 'canvas-api'
 require 'pry'
 require 'csv'
 require 'pp'
-#require 'quality_extensions'
 
 puts "                                                    ,,,         ,,,      "
 puts '                                                  ;"   ^;     ;^   ",    '
@@ -21,11 +20,14 @@ puts '                          "      }#H)                              v0.1  '
 puts ""
 
 # initiate canvas-api
+#!TODO don't forget about your hardcoded values for testing
 $domain = "https://pony.instructure.com"
 $api_token = ""
+#!TODO fucntion-ify this — this needs to be re0iniitated everytime a new instance is set
 $canvas = Canvas::API.new(:host => "#{$domain}", :token => "#{$api_token}")
 
 $counter = 0
+$selection_counter = 0
 
 $buffers = {}
 
@@ -36,25 +38,30 @@ def create_buffer(input)
   $counter += 1
 end
 
+def create_selection(input)
+  selection_name = "selection_#{$selection_counter}"
+  $buffers.merge!(selection_name => input)
+  puts "selection_#{$selection_counter}"
+  $selection_counter += 1
+end
+
 def startup()
   binding.pry
 end
 
 Commands = Pry::CommandSet.new do
 
-  # set token command
-  # feature idea: add a -s flag to save the token locally
   create_command "token" do
     description "Sets the token for the session: token [api_token]."
     def process
       # not sure if this is the *best* way to handle this, but it works for here at least
       # history lesson: anything entered after the command name is stored in an array titled args
       $api_token = args[0]
-        output.puts "token set"
+      $canvas = Canvas::API.new(:host => "#{$domain}", :token => "#{$api_token}")
+      output.puts "token set"
     end
   end
 
-  # set instance
   create_command "inst" do
     description "Sets the instance for the session: instance [instance_name]."
     banner <<-BANNER
@@ -77,11 +84,12 @@ Commands = Pry::CommandSet.new do
         $domain = "https://#{args[0]}.instructure.com"
         output.puts "instance set"
       end
+      $canvas = Canvas::API.new(:host => "#{$domain}", :token => "#{$api_token}")
     end
   end
 
   create_command "GET" do
-    description "stores JSON from endpoint in an array."
+    description "Stores JSON from endpoint in an array."
     banner <<-BANNER
       Usage: GET [-p <integer> | -a ] /api/v1/<endpoint> 
 
@@ -135,9 +143,7 @@ Commands = Pry::CommandSet.new do
       #!TODO probs find a better way to handle pretty print.
       pp $buffers.fetch(args[0])
     end
-    # this opens up an opportunity/problem for some neat interpolating stuffs
   end
-
 
   create_command "CSV" do
     description "Writes a CSV file of given buffer"
@@ -148,15 +154,121 @@ Commands = Pry::CommandSet.new do
       Defaults do your downloads directory
     BANNER
     def process
-      CSV.open("Downloads/#{args[0]}.csv", "wb") do |csv|
+      # apparently this breaks when the script is in the root directory, but works when in Downloads
+      CSV.open("#{args[0]}.csv", "wb") do |csv|
           csv << $buffers.fetch(args[0]).first.keys # adds the attributes name on the first line
           $buffers.fetch(args[0]).each do |hash|
             csv << hash.values
           end
       end
-      end
+    end
   end
 
+  create_command "select" do
+    description "Creates an array contain all values of given key in a buffer."
+    banner <<-BANNER
+      Usage: select <buffer name> <key> [-w / --where] <key> (operator) <value>
+      
+      Creates a flat array containing all values for the provided <key> in the provided buffer
+      -w --where : Optional — filters which values will be added to the array
+      
+      Example: select buffer_0 user_id --where sis_import_id = 1234
+      => will create a array containg all user_id values in buffer_0 that have a sis_import_id of 1234
+
+      Allowed operators: = , != , > , < , contains , !contains
+    BANNER
+
+    def options(opt)
+      opt.on :w, :where, "allows user to pass a conditional statement to filter which values are added to the selection."
+    end
+
+    def process
+      #!TODO do some error handling here to ensure format is valid
+      selection_output = []
+
+      # select <buffer> <key> -w <key> <operator> <value>
+      #        args[0] args[1]  args[2] args[3]    args[4]
+    
+      if opts.where?	
+        key = args[1]
+        filter_key = args[2]
+        operator = args[3].to_s
+        allowed_operators = ["=","!=","equals","!equals",">","<","contains","!contains"]
+        args[4] = '' if args[4] == 'nil' || args[4] == 'null'
+        filter_value = args[4]
+
+        if allowed_operators.include? operator == false
+          raise Pry::CommandError, "Error: invalid operator. Allowed operators: = , != , > , < , contains , !contains"  
+        end
+        case operator
+        when "="
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            if x.fetch(filter_key).to_s == filter_value
+              selection_output.push(value) 
+            end
+          end
+        when "!="# | "!equals"
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            if x.fetch(filter_key).to_s != filter_value
+              selection_output.push(value) 
+            end
+          end
+        when ">"
+          # these operators will need:
+          # 1. to turn everything into a integer, not a string like everything else
+          # 2. error messaging if non integer value is passed
+          if filter_value.to_i.to_s != filter_value 
+            raise Pry::CommandError, "Error: filter-value must be an integer when using the '>' '<' operators.operators" 
+          end
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            if x.fetch(filter_key).to_i > filter_value.to_i
+              selection_output.push(value)
+            end
+          end
+
+        when "<"
+          if filter_value.to_i.to_s != filter_value 
+            raise Pry::CommandError, "Error: filter-value must be an integer when using the '>' '<' operators.operators" 
+          end
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            if x.fetch(filter_key).to_i < filter_value.to_i
+              selection_output.push(value)
+            end
+          end
+      
+        when "contains"
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            if x.fetch(filter_key).include? filter_value
+              selection_output.push(value)
+            end
+          end
+
+        when "!contains"
+          $buffers.fetch(args[0]).each do |x|
+            value = x.fetch(key)
+            unless x.fetch(filter_key).include? filter_value
+              selection_output.push(value)
+            end
+          end
+        end
+
+        create_selection(selection_output)
+      else
+        $buffers.fetch(args[0]).each do |x|
+          selection_output.push(x.fetch(args[1]))
+        end
+        
+        create_selection(selection_output)
+
+      end
+
+    end
+  end
 
  # this end belongs to `Commands = Pry::CommandSet.new do`
 end
@@ -165,3 +277,4 @@ Pry.commands.import Commands
 
 # initiate pry
 startup()
+
