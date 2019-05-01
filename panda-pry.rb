@@ -336,16 +336,18 @@ Commands = Pry::CommandSet.new do
         case method
         when "GET"
           response = $canvas.get(call.gsub('yeet', x.to_s))
-          puts response
+          ouput_helper(response, output)
         when "PUT"
           response = $canvas.put(call.gsub('yeet', x.to_s))
-          response.each {|r| output.push(r)}
+          ouput_helper(response, output)
         when "DELETE"
           response = $canvas.delete(call.gsub('yeet', x.to_s))
-          response.each {|r| output.push(r)}
+          ouput_helper(response, output)
         when "POST"
           response = $canvas.delete(call.gsub('yeet', x.to_s))
-          response.each {|r| output.push(r)}
+          ouput_helper(response, output)
+        else
+          puts "HTTP Method not reconized, allowed methods: GET, PUT, POST, DELETE"
         end
       end
       create_buffer(output)
