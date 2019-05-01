@@ -75,7 +75,6 @@ Commands = Pry::CommandSet.new do
   create_command "token" do
     description "Sets the token for the session: token [api_token]."
     def process
-      # not sure if this is the *best* way to handle this, but it works for here at least
       # history lesson: anything entered after the command name is stored in an array titled args
       $api_token = args[0]
       $canvas = Canvas::API.new(:host => "#{$domain}", :token => "#{$api_token}")
@@ -241,7 +240,7 @@ Commands = Pry::CommandSet.new do
         key = args[1]
         filter_key = args[2]
         operator = args[3].to_s
-        allowed_operators = ["=","!=","equals","!equals",">","<","contains","!contains"]
+        allowed_operators = ["=","!=",">","<","contains","!contains"]
         args[4] = '' if args[4] == 'nil' || args[4] == 'null'
         filter_value = args[4]
 
@@ -328,7 +327,6 @@ Commands = Pry::CommandSet.new do
     BANNER
     def process
       method = args[1].upcase
-      # ^error handling to ensure the method is valid
       call = args[2]
       output = []
       $buffers.fetch(args[0]).each do |x|
