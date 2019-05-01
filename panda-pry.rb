@@ -45,6 +45,14 @@ def create_selection(input)
   $selection_counter += 1
 end
 
+def output_helper(response, output)
+  if response.class == Hash
+    output.push(response)
+  else 
+    response.each {|r| output.push(r)}
+  end
+end
+
 def startup()
   puts "enter 'plshelp' at anytime for a complete list of commands"
   binding.pry
@@ -132,7 +140,7 @@ Commands = Pry::CommandSet.new do
         end
       else
         get_data = $canvas.get("#{args[0]}")
-        get_data.each {|x| output.push(x)}
+        output_helper(get_data, output)
       end
       create_buffer(output)	
     end

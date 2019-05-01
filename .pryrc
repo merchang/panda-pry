@@ -1,3 +1,3 @@
-Pry.config.prompt = [proc { "panda-pry 🐼 " },
+Pry.config.prompt = [proc { "panda-pry 🐼  " },
                      proc { "     | " }]
 
