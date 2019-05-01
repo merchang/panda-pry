@@ -215,10 +215,8 @@ Commands = Pry::CommandSet.new do
               selection_output.push(value) 
             end
           end
+
         when ">"
-          # these operators will need:
-          # 1. to turn everything into a integer, not a string like everything else
-          # 2. error messaging if non integer value is passed
           if filter_value.to_i.to_s != filter_value 
             raise Pry::CommandError, "Error: filter-value must be an integer when using the '>' '<' operators.operators" 
           end
@@ -260,7 +258,7 @@ Commands = Pry::CommandSet.new do
         create_selection(selection_output)
       else
         $buffers.fetch(args[0]).each do |x|
-          selection_output.push(x.fetch(args[1]))
+          selection_output.push(x.to_s.fetch(args[1]))
         end
         
         create_selection(selection_output)
@@ -269,6 +267,43 @@ Commands = Pry::CommandSet.new do
 
     end
   end
+
+  create_command "YEET" do
+    description "Executes an API call, replacing 'yeet' with the provided selection value(s)"
+    banner <<-BANNER
+      Usage: YEET <selection_name> <http_method> /api/v1/endpoint/yeet/
+      
+      Iterates over a provided selection buffer, replace 'yeet' in the provided call with
+      the values of the selection buffer. Outputs a buffer containing the response bodies
+      of each call that was made.
+      "dis bish empty! YEET!"
+    BANNER
+    def process
+      method = args[1].upcase
+      # ^error handling to ensure the method is valid
+      call = args[2]
+      output = []
+      $buffers.fetch(args[0]).each do |x|
+        puts method + " " + call.gsub('yeet', x.to_s) + " ✓"
+        case method
+        when "GET"
+          response = $canvas.get(call.gsub('yeet', x.to_s))
+          puts response
+        when "PUT"
+          response = $canvas.put(call.gsub('yeet', x.to_s))
+          response.each {|r| output.push(r)}
+        when "DELETE"
+          response = $canvas.delete(call.gsub('yeet', x.to_s))
+          response.each {|r| output.push(r)}
+        when "POST"
+          response = $canvas.delete(call.gsub('yeet', x.to_s))
+          response.each {|r| output.push(r)}
+        end
+      end
+      create_buffer(output)
+    end
+  end
+
 
  # this end belongs to `Commands = Pry::CommandSet.new do`
 end
