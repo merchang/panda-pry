@@ -45,7 +45,28 @@ def create_selection(input)
   $selection_counter += 1
 end
 
+def output_helper(response, output)
+  if response.class == Hash
+    output.push(response)
+  else 
+    response.each {|r| output.push(r)}
+  end
+end
+
+def flatten_hash(hash, results = {}, parent_key = '')
+  hash.each_with_object({}) do |(k, v), h|
+    if v.is_a? Hash
+      flatten_hash(v).map do |h_k, h_v|
+        h["#{k}.#{h_k}"] = h_v
+      end
+    else 
+      h[k] = v
+    end
+ end
+end
+
 def startup()
+  puts "enter 'plshelp' at anytime for a complete list of commands"
   binding.pry
 end
 
@@ -131,7 +152,7 @@ Commands = Pry::CommandSet.new do
         end
       else
         get_data = $canvas.get("#{args[0]}")
-        get_data.each {|x| output.push(x)}
+        output_helper(get_data, output)
       end
       create_buffer(output)	
     end
@@ -145,6 +166,32 @@ Commands = Pry::CommandSet.new do
     end
   end
 
+  create_command "plshelp" do
+    description "List all avalilbe commands."
+    def process
+      puts <<-plshelp
+        You may enter '<command_name> -h' at anytime for a complete description of the command
+        ======================================================================================
+
+        inst: sets the canvas instance for the session
+        
+        token: sets a token for the session
+        
+        GET: makes a GET request to the provided endpoint. Outputs a buffer name that stores the JSON response of the call.
+        
+        select: creates an array containing all values of a given key in a buffer. Can conditionally select values.
+        
+        !: pretty prings a buffer or selection.
+        
+        CSV: generates a csv file for a given buffer
+        
+        YEET: accepts a selection, http method, & endpoint. iterates over the provided selection.
+
+      plshelp
+    end
+  end
+
+
   create_command "CSV" do
     description "Writes a CSV file of given buffer"
     banner <<-BANNER
@@ -154,11 +201,12 @@ Commands = Pry::CommandSet.new do
       Defaults do your downloads directory
     BANNER
     def process
-      # apparently this breaks when the script is in the root directory, but works when in Downloads
-      CSV.open("#{args[0]}.csv", "wb") do |csv|
-          csv << $buffers.fetch(args[0]).first.keys # adds the attributes name on the first line
-          $buffers.fetch(args[0]).each do |hash|
-            csv << hash.values
+      CSV.open("#{args[0]}-#{Time.now.to_i}.csv", "wb") do |csv|
+          input = $buffers.fetch(args[0])
+          csv << flatten_hash(input.first).keys # adds the attributes name on the first line
+          input.each do |hash|
+            output = flatten_hash(hash)
+            csv << output.values
           end
       end
     end
@@ -215,10 +263,8 @@ Commands = Pry::CommandSet.new do
               selection_output.push(value) 
             end
           end
+
         when ">"
-          # these operators will need:
-          # 1. to turn everything into a integer, not a string like everything else
-          # 2. error messaging if non integer value is passed
           if filter_value.to_i.to_s != filter_value 
             raise Pry::CommandError, "Error: filter-value must be an integer when using the '>' '<' operators.operators" 
           end
@@ -260,7 +306,7 @@ Commands = Pry::CommandSet.new do
         create_selection(selection_output)
       else
         $buffers.fetch(args[0]).each do |x|
-          selection_output.push(x.fetch(args[1]))
+          selection_output.push(x.to_s.fetch(args[1]))
         end
         
         create_selection(selection_output)
@@ -269,6 +315,43 @@ Commands = Pry::CommandSet.new do
 
     end
   end
+
+  create_command "YEET" do
+    description "Executes an API call, replacing 'yeet' with the provided selection value(s)"
+    banner <<-BANNER
+      Usage: YEET <selection_name> <http_method> /api/v1/endpoint/yeet/
+      
+      Iterates over a provided selection buffer, replace 'yeet' in the provided call with
+      the values of the selection buffer. Outputs a buffer containing the response bodies
+      of each call that was made.
+      "dis bish empty! YEET!"
+    BANNER
+    def process
+      method = args[1].upcase
+      # ^error handling to ensure the method is valid
+      call = args[2]
+      output = []
+      $buffers.fetch(args[0]).each do |x|
+        puts method + " " + call.gsub('yeet', x.to_s) + " ✓"
+        case method
+        when "GET"
+          response = $canvas.get(call.gsub('yeet', x.to_s))
+          puts response
+        when "PUT"
+          response = $canvas.put(call.gsub('yeet', x.to_s))
+          response.each {|r| output.push(r)}
+        when "DELETE"
+          response = $canvas.delete(call.gsub('yeet', x.to_s))
+          response.each {|r| output.push(r)}
+        when "POST"
+          response = $canvas.delete(call.gsub('yeet', x.to_s))
+          response.each {|r| output.push(r)}
+        end
+      end
+      create_buffer(output)
+    end
+  end
+
 
  # this end belongs to `Commands = Pry::CommandSet.new do`
 end
