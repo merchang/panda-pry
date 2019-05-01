@@ -46,6 +46,7 @@ def create_selection(input)
 end
 
 def startup()
+  puts "enter 'plshelp' at anytime for a complete list of commands"
   binding.pry
 end
 
@@ -144,6 +145,32 @@ Commands = Pry::CommandSet.new do
       pp $buffers.fetch(args[0])
     end
   end
+
+  create_command "plshelp" do
+    description "List all avalilbe commands."
+    def process
+      puts <<-plshelp
+        You may enter '<command_name> -h' at anytime for a complete description of the command
+        ======================================================================================
+
+        inst: sets the canvas instance for the session
+        
+        token: sets a token for the session
+        
+        GET: makes a GET request to the provided endpoint. Outputs a buffer name that stores the JSON response of the call.
+        
+        select: creates an array containing all values of a given key in a buffer. Can conditionally select values.
+        
+        !: pretty prings a buffer or selection.
+        
+        CSV: generates a csv file for a given buffer
+        
+        YEET: accepts a selection, http method, & endpoint. iterates over the provided selection.
+
+      plshelp
+    end
+  end
+
 
   create_command "CSV" do
     description "Writes a CSV file of given buffer"
