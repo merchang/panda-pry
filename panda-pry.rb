@@ -53,6 +53,18 @@ def output_helper(response, output)
   end
 end
 
+def flatten_hash(hash, results = {}, parent_key = '')
+  hash.each_with_object({}) do |(k, v), h|
+    if v.is_a? Hash
+      flatten_hash(v).map do |h_k, h_v|
+        h["#{k}.#{h_k}"] = h_v
+      end
+    else 
+      h[k] = v
+    end
+ end
+end
+
 def startup()
   puts "enter 'plshelp' at anytime for a complete list of commands"
   binding.pry
@@ -189,11 +201,12 @@ Commands = Pry::CommandSet.new do
       Defaults do your downloads directory
     BANNER
     def process
-      # apparently this breaks when the script is in the root directory, but works when in Downloads
-      CSV.open("#{args[0]}.csv", "wb") do |csv|
-          csv << $buffers.fetch(args[0]).first.keys # adds the attributes name on the first line
-          $buffers.fetch(args[0]).each do |hash|
-            csv << hash.values
+      CSV.open("#{args[0]}-#{Time.now.to_i}.csv", "wb") do |csv|
+          input = $buffers.fetch(args[0])
+          csv << flatten_hash(input.first).keys # adds the attributes name on the first line
+          input.each do |hash|
+            output = flatten_hash(hash)
+            csv << output.values
           end
       end
     end
