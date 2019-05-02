@@ -160,8 +160,7 @@ Commands = Pry::CommandSet.new do
   create_command "!" do
     description "Pretty prints buffer: ! <buffer name>."
     def process
-      #!TODO probs find a better way to handle pretty print.
-      pp $buffers.fetch(args[0])
+      puts JSON.pretty_generate($buffers.fetch(args[0]))
     end
   end
 
