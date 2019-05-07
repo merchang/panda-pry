@@ -210,6 +210,21 @@ Commands = Pry::CommandSet.new do
     end
   end
 
+    create_command "open" do
+      description "Ingests a CSV, creates buffer of CSV data"
+      banner <<-BANNER
+        Usage: open </path/to/file.csv>
+        Ingests a CSV file, converting data into a new buffer. Outputs buffer name.
+        Note: assumes provided CSV contains headers.
+      BANNER
+      def process
+        input = CSV.open(args[0], headers: :first_row).map(&:to_h)
+        output = []
+        output_helper(input, output)
+        create_buffer(output)
+      end
+    end
+
   create_command "select" do
     description "Creates an array contain all values of given key in a buffer."
     banner <<-BANNER
