@@ -20,10 +20,8 @@ puts '                          "      }#H)                              v0.1  '
 puts ""
 
 # initiate canvas-api
-#!TODO don't forget about your hardcoded values for testing
 $domain = "https://pony.instructure.com"
 $api_token = ""
-#!TODO fucntion-ify this — this needs to be re0iniitated everytime a new instance is set
 $canvas = Canvas::API.new(:host => "#{$domain}", :token => "#{$api_token}")
 
 $counter = 0
