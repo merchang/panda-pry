@@ -65,6 +65,24 @@ def flatten_hash(hash, results = {}, parent_key = '')
  end
 end
 
+def spinner(fps=10)
+  chars = %w[| / - \\]
+  delay = 1.0/fps
+  iter = 0
+  spinner = Thread.new do
+	while iter do  # Keep spinning until told otherwise
+	  print chars[(iter+=1) % chars.length]
+	  sleep delay
+	  print "\b"
+	end
+  end
+  yield.tap{       # After yielding to the block, save the return value
+	iter = false   # Tell the thread to exit, cleaning up after itself…
+	spinner.join   # …and wait for it to do so.
+  }                # Use the block's return value as the method's
+end
+
+
 def startup()
   puts "enter 'plshelp' at anytime for a complete list of commands"
   binding.pry
@@ -121,9 +139,9 @@ Commands = Pry::CommandSet.new do
       # note :all is apparently reserved namespace and breaks things if you use it
     end
     def process
-        raise Pry::CommandError, "-a and -p cannot be passed together" if opts.allthethings? && opts.pages?			
-        output = []
-
+      raise Pry::CommandError, "-a and -p cannot be passed together" if opts.allthethings? && opts.pages?			
+      output = []
+      spinner {
       if opts.pages? == true
         total_pages = args[0].to_i
         get_data = $canvas.get("#{args[1]}")
@@ -153,6 +171,7 @@ Commands = Pry::CommandSet.new do
         get_data = $canvas.get("#{args[0]}")
         output_helper(get_data, output)
       end
+      }
       create_buffer(output)	
     end
   end
@@ -182,6 +201,8 @@ Commands = Pry::CommandSet.new do
         !: pretty prings a buffer or selection.
         
         CSV: generates a csv file for a given buffer
+
+        open: ingests a CSV file, converting data into a new buffer. Outputs buffer name.
         
         YEET: accepts a selection, http method, & endpoint. iterates over the provided selection.
 
@@ -196,7 +217,9 @@ Commands = Pry::CommandSet.new do
       Usage: CSV <buffer_name>
 
       Writes the JSON data stored in a buffer to a CSV file. 
-      Defaults do your downloads directory
+      Outputed file will be save in the directory panda-pry was initiated in.
+      Note: Nested JSON objects will be flattened. ex) all fields nested inside of a 'user'
+      field will be written to the CSV with a header of 'user.<field_name>'
     BANNER
     def process
       CSV.open("#{args[0]}-#{Time.now.to_i}.csv", "wb") do |csv|
@@ -215,7 +238,7 @@ Commands = Pry::CommandSet.new do
       banner <<-BANNER
         Usage: open </path/to/file.csv>
         Ingests a CSV file, converting data into a new buffer. Outputs buffer name.
-        Note: assumes provided CSV contains headers.
+        Note: command assumes provided CSV contains headers.
       BANNER
       def process
         input = CSV.open(args[0], headers: :first_row).map(&:to_h)
