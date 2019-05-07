@@ -183,6 +183,24 @@ Commands = Pry::CommandSet.new do
     end
   end
 
+  create_command "flatten" do
+    description "Flattens all nested JSON in a buffer."
+    banner <<-BANNER
+      Usage: flaten <buffer_name>
+      
+      Creates a new buffer with the same information as the provided buffer. All JSON objects in the new buffer will be flattened. 
+      example: all fields nested inside of a 'user' field will be written to the CSV with a header of 'user.<field_name>'
+    BANNER
+
+    def process
+      input = $buffers.fetch(args[0])
+      output = []
+      input.each { |x| output.push(flatten_hash(x)) }
+      create_buffer(output)
+    end
+  end
+
+
   create_command "plshelp" do
     description "List all avalilbe commands."
     def process
@@ -196,6 +214,8 @@ Commands = Pry::CommandSet.new do
         
         GET: makes a GET request to the provided endpoint. Outputs a buffer name that stores the JSON response of the call.
         
+        flatten: flattens all nested JSON in a buffer. 
+
         select: creates an array containing all values of a given key in a buffer. Can conditionally select values.
         
         !: pretty prings a buffer or selection.
@@ -260,6 +280,8 @@ Commands = Pry::CommandSet.new do
       => will create a array containg all user_id values in buffer_0 that have a sis_import_id of 1234
 
       Allowed operators: = , != , > , < , contains , !contains
+
+      Note: in order to select a nested JSON feild, you will first need to flatten the buffer. See 'flatten -h'
     BANNER
 
     def options(opt)
